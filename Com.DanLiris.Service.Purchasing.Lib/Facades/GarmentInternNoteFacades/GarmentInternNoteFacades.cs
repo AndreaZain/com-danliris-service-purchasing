@@ -428,7 +428,7 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentInternNoteFacades
             var internnoteitemIds = queryResult.Distinct().Select(x => x.internNoteItemId).ToList();
             var internnoteitems = dbContext.GarmentInternNoteItems.Where(x => internnoteitemIds.Contains(x.Id)).Select(x => new { x.Id, x.InvoiceNo, x.InvoiceDate }).ToList();
             var internnotedetailIds = queryResult.Distinct().Select(x => x.internNoteDetailId).ToList();
-            var internnotedetails = dbContext.GarmentInternNoteDetails.Where(x => internnotedetailIds.Contains(x.Id)).Select(x => new { x.Id, x.DONo, x.DODate, x.ProductName }).ToList();
+            var internnotedetails = dbContext.GarmentInternNoteDetails.Where(x => internnotedetailIds.Contains(x.Id)).Select(x => new { x.Id, x.DONo, x.DODate, x.ProductName, x.PaymentDueDate }).OrderBy(x => x.PaymentDueDate).ToList();
             var deliveryorderIds = queryResult.Distinct().Select(x => x.deliveryOrderId).ToList();
             var deliveryorders = dbContext.GarmentDeliveryOrders.Where(x => deliveryorderIds.Contains(x.Id)).Select(x => new { x.Id, x.BillNo, x.PaymentBill, x.DOCurrencyRate, x.PaymentMethod }).ToList();
             var invoiceIds = queryResult.Distinct().Select(x => x.invoiceId).ToList();
@@ -466,7 +466,9 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentInternNoteFacades
                     doCurrencyRate = deliveryorder.DOCurrencyRate,
                     paymentType = deliveryorder.PaymentMethod,
                     paymentDoc = data1 == null ? "-" : data1.ExpenditureNoteNo,
-                    paymentDate = data1 == null ? new DateTime(1970, 1, 1) : data1.ExpenditureDate
+                    paymentDate = data1 == null ? new DateTime(1970, 1, 1) : data1.ExpenditureDate,
+                    dueDate = internnotedetail.PaymentDueDate,                  
+                    diffDays = (internnote.INDate - internnotedetail.PaymentDueDate).Days,
                 });
             }
             //return list;
@@ -501,7 +503,9 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentInternNoteFacades
                               paymentDate = i.paymentDate,
                               cnNo = gcnn == null ? "-" : gcnn.CorrectionNo,
                               cnDate = gcnn == null ? new DateTime(1970, 1, 1) : gcnn.CorrectionDate,
-                              cnAmount = gcnn == null ? 0 : gcnn.TotalCorrection
+                              cnAmount = gcnn == null ? 0 : gcnn.TotalCorrection,
+                              dueDate = i.dueDate,
+                              diffDays = i.diffDays
                           });
 
             return result.ToList();
@@ -518,6 +522,8 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentInternNoteFacades
             result.Columns.Add(new DataColumn() { ColumnName = "No", DataType = typeof(String) });
             result.Columns.Add(new DataColumn() { ColumnName = "Nomor Nota Intern", DataType = typeof(String) });
             result.Columns.Add(new DataColumn() { ColumnName = "Tanggal Nota Intern", DataType = typeof(String) });
+            result.Columns.Add(new DataColumn() { ColumnName = "Tanggal Jatuh Tempo", DataType = typeof(String) });
+            result.Columns.Add(new DataColumn() { ColumnName = "Terlambat (Hari)", DataType = typeof(String) });
             result.Columns.Add(new DataColumn() { ColumnName = "Kode Supplier", DataType = typeof(String) });
             result.Columns.Add(new DataColumn() { ColumnName = "Nama Supplier", DataType = typeof(String) });
             result.Columns.Add(new DataColumn() { ColumnName = "Nomor Invoice", DataType = typeof(String) });
@@ -541,7 +547,7 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentInternNoteFacades
             //result.Columns.Add(new DataColumn() { ColumnName = "poserialnumber", DataType = typeof(String) });
 
             if (Query.Count() == 0)
-                result.Rows.Add("", "", "", "", "", "", "", "", "", "", "", 0, "", "", "", "", 0, "", "", 0, "","","");
+                result.Rows.Add("", "", "", "", "", "", "", "", "", "", "", "", "", 0, "", "", "", "", 0, "", "", 0, "","","");
             else
             {
                 int index = 0;
@@ -550,6 +556,7 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentInternNoteFacades
                     index++;
                     string date = item.iNDate == null ? "-" : item.iNDate.ToOffset(new TimeSpan(offset, 0, 0)).ToString("dd MMM yyyy", new CultureInfo("id-ID"));
                     string paymentdate = item.paymentDate == new DateTime(1970, 1, 1) ? "-" : item.paymentDate.ToOffset(new TimeSpan(offset, 0, 0)).ToString("dd MMM yyyy", new CultureInfo("id-ID"));
+                    string duedate = item.dueDate == new DateTime(1970, 1, 1) ? "-" : item.dueDate.ToOffset(new TimeSpan(offset, 0, 0)).ToString("dd MMM yyyy", new CultureInfo("id-ID"));
                     //string DueDate = item.paymentDueDate == null ? "-" : item.paymentDueDate.ToOffset(new TimeSpan(offset, 0, 0)).ToString("dd MM yyyy", new CultureInfo("id-ID"));
                     string invoDate = item.invoiceDate == null ? "-" : item.invoiceDate.ToOffset(new TimeSpan(offset, 0, 0)).ToString("dd MMM yyyy", new CultureInfo("id-ID"));
                     string Dodate = item.doDate == null ? "-" : item.doDate.ToOffset(new TimeSpan(offset, 0, 0)).ToString("dd MMM yyyy", new CultureInfo("id-ID"));
@@ -559,7 +566,7 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentInternNoteFacades
                     string corrDate = item.cnDate == new DateTime(1970, 1, 1) ? "-" : item.cnDate.ToOffset(new TimeSpan(offset, 0, 0)).ToString("dd MMM yyyy", new CultureInfo("id-ID"));
                     string corrAmt = string.Format("{0:N2}", item.cnAmount);
                     //result.Rows.Add(index, item.inNo, date, item.currencyCode, item.supplierName, item.paymentMethod, item.paymentType, DueDate, item.invoiceNo, invoDate, item.doNo, Dodate, item.pOSerialNumber, item.rONo, item.productCode, item.productName, item.quantity, item.uOMUnit, item.pricePerDealUnit, totalHarga);
-                    result.Rows.Add(index, item.inNo, date, item.supplierCode, item.supplierName, item.invoiceNo, invoDate, item.doNo, Dodate, item.billNo, item.paymentBill, priceTotal, item.NPN, item.VatNo, item.ProductName, item.currencyCode, item.doCurrencyRate, item.cnNo, corrDate, corrAmt, item.paymentType, item.paymentDoc, paymentdate);
+                    result.Rows.Add(index, item.inNo, date, duedate, item.diffDays, item.supplierCode, item.supplierName, item.invoiceNo, invoDate, item.doNo, Dodate, item.billNo, item.paymentBill, priceTotal, item.NPN, item.VatNo, item.ProductName, item.currencyCode, item.doCurrencyRate, item.cnNo, corrDate, corrAmt, item.paymentType, item.paymentDoc, paymentdate);
                 }
             }
 

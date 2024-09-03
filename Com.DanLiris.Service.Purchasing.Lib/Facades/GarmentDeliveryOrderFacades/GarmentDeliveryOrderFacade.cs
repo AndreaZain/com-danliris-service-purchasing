@@ -1237,7 +1237,8 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentDeliveryOrderFacade
                     SupplierId = selectedSupplierId,
                     SupplierCode = selectedSupplier.SupplierCode,
                     SupplierName = selectedSupplier.SupplierName,
-                    OKStatusPercentage = Math.Floor((double)okPercentage),
+                    //OKStatusPercentage = Math.Floor((double)okPercentage),
+                    OKStatusPercentage = okPercentage,
                     OKTotal = 0,
                     Total = total
                 };
@@ -1296,7 +1297,10 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentDeliveryOrderFacade
 
                 var total = resultToCount.Count;
                 var okTotal = resultToCount.Count(c => (c.ShipmentDate - c.DODate).Days >= 30);
-                var okPercentage = total > 0 ? okTotal / (double)total * 100 : 0;
+                var okPercentage = total > 0 ? (decimal)((okTotal / total) * 100) : 0;
+
+                var notOkTotal = resultToCount.Count(c => (c.ShipmentDate - c.DODate).Days < 30);
+                var notOkPercentage = total > 0 ? (decimal)((notOkTotal / total) * 100) : 0;
 
                 var selectedSupplier = selectedGarmentDeliveryOrders.FirstOrDefault(f => f.SupplierId == selectedSupplierId);
 
@@ -1305,8 +1309,12 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentDeliveryOrderFacade
                     SupplierId = selectedSupplierId,
                     SupplierCode = selectedSupplier.SupplierCode,
                     SupplierName = selectedSupplier.SupplierName,
-                    OKStatusPercentage = Math.Floor((double)okPercentage),
+                    //OKStatusPercentage = Math.Floor((double)okPercentage),
+                    OKStatusPercentage = okPercentage,
                     OKTotal = okTotal,
+                    //NotOKStatusPercentage = Math.Floor((double)notOkPercentage),
+                    NotOKStatusPercentage = notOkPercentage,
+                    NotOKTotal = notOkTotal,
                     Total = total,
                 };
 
@@ -1354,7 +1362,10 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentDeliveryOrderFacade
 
                 var total = resultToCount.Count;
                 var okTotal = resultToCount.Count(c => (c.ShipmentDate - c.DODate).Days >= 30);
-                var okPercentage = total > 0 ? okTotal / (double)total * 100 : 0;
+                var okPercentage = total > 0 ? (decimal)((okTotal / total) * 100) : 0;
+
+                var notOkTotal = resultToCount.Count(c => (c.ShipmentDate - c.DODate).Days < 30);
+                var notOkPercentage = total > 0 ? (decimal)((notOkTotal / total) * 100) : 0;
 
                 var selectedSupplier = selectedGarmentDeliveryOrders.FirstOrDefault(f => f.SupplierId == selectedSupplierId);
 
@@ -1364,8 +1375,12 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentDeliveryOrderFacade
                     SupplierId = selectedSupplierId,
                     SupplierCode = selectedSupplier.SupplierCode,
                     SupplierName = selectedSupplier.SupplierName,
-                    OKStatusPercentage = Math.Floor((double)okPercentage),
+                    //OKStatusPercentage = Math.Floor((double)okPercentage),
+                    OKStatusPercentage = okPercentage,
                     OKTotal = okTotal,
+                    //NotOKStatusPercentage = Math.Floor((double)notOkPercentage),
+                    NotOKStatusPercentage = notOkPercentage,
+                    NotOKTotal = notOkTotal,
                     Total = total
                 };
 
@@ -1888,6 +1903,27 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentDeliveryOrderFacade
                     result.Rows.Add(index, item.SupplierName, item.POSerialNumber, prDate, poDate, epoDate, item.DONo, item.ProductCode, item.ProductName, item.ProductRemark, item.Article, item.RONo,
                         shipmentDate, doDate, item.OKStatus, item.Staff, item.ProductName);
                 }
+                result.Rows.Add("", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""); // to allow column name to be generated properly for empty data as template
+                result.Rows.Add("", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""); // to allow column name to be generated properly for empty data as template
+
+                int Total = 0;
+                int TotalOk = 0;
+                string PercentOk = "";
+                int TotalNotOk = 0;
+                string PercentNotOk = "";
+
+                Total = reportDetailResult.Count;
+                TotalOk = reportDetailResult.Count(c => (c.ShipmentDate - c.DODate).Days >= 30);
+                PercentOk = ((decimal)TotalOk / Total).ToString("P", new CultureInfo("id-ID"));
+                TotalNotOk = reportDetailResult.Count(c => (c.ShipmentDate - c.DODate).Days < 30);
+                PercentNotOk = ((decimal)TotalNotOk / Total).ToString("P", new CultureInfo("id-ID"));
+
+                result.Rows.Add(null, "KESIAPAN BAHAN BAKU / BAHAN PENDUKUNG DENGAN LEAD TIME 30 HARI", null, null, null, null, null, null, null, null);
+                result.Rows.Add(null, "Status OK", null, "Perhitungan dari selisih Tgl Shipment dengan Tgl Kedatangan Barang >= 30 hari", null, null, null, null, null, null);
+                result.Rows.Add(null, "Persentase Status OK", null, $"{TotalOk}/{Total} X 100% = {PercentOk}", null, null, null, null, null, null);
+                result.Rows.Add(null, "Status NOT OK", null, "Perhitungan dari selisih Tgl Shipment dengan Tgl Kedatangan Barang < 30 hari", null, null, null, null, null, null);
+                result.Rows.Add(null, "Persentase Status NOT OK", null, $"{TotalNotOk}/{Total} X 100% = {PercentNotOk}", null, null, null, null, null, null);
+
             }
             return Excel.CreateExcel(new List<KeyValuePair<DataTable, string>>() { new KeyValuePair<DataTable, string>(result, "Territory") }, true);
         }
@@ -2540,9 +2576,11 @@ namespace Com.DanLiris.Service.Purchasing.Lib.Facades.GarmentDeliveryOrderFacade
         public long SupplierId { get; set; }
         public string SupplierCode { get; set; }
         public string SupplierName { get; set; }
-        public double OKStatusPercentage { get; set; }
+        public decimal OKStatusPercentage { get; set; }
+        public decimal NotOKStatusPercentage { get; set; }
         public int Total { get; set; }
         public int OKTotal { get; internal set; }
+        public int NotOKTotal { get; internal set; }
     }
 
     public class AccuracyOfArrivalReportHeaderResult
